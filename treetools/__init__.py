@@ -99,7 +99,69 @@ def put(tree, keys, val, force=False):
                 tree = tree[k]
             else:
                 raise
-    tree[ks.pop()] = val
+        except IndexError:
+            if force:
+                n = k - len(tree) + 1
+                tree += [[] for _ in range(n)]
+                tree = tree[k]
+            else:
+                raise
+    k = ks.pop()
+    try:
+        tree[k] = val
+    except IndexError:
+        if force:
+            n = k - len(tree) + 1
+            tree += [None for _ in range(n)]
+            tree[k] = val
+        else:
+            raise
+
+
+class nesteddict(dict):
+
+    def __getitem__(self, k):
+        if isinstance(k, tuple):
+            if len(k) == 1:
+                try:
+                    return self.__getitem__(k[0])
+                except KeyError:
+                    raise KeyError(k)
+            else:
+                newd = False
+                try:
+                    d = self.__getitem__(k[0])
+                except KeyError:
+                    d = nesteddict()
+                    newd = True
+                    self.__setitem__(k[0], d)
+                try:
+                    return d.__getitem__(k[1:])
+                except KeyError as e:
+                    if newd:
+                        del self[k[0]]
+                        raise KeyError(k[:1])
+                    else:
+                        raise KeyError(k[:1] + e.args[0])
+        else:
+            return super(nesteddict, self).__getitem__(k)
+
+    def __setitem__(self, k, v):
+        if isinstance(k, tuple):
+            if len(k) == 1:
+                try:
+                    return self.__setitem__(k[0], v)
+                except KeyError:
+                    raise KeyError(k)
+            else:
+                try:
+                    d = self.__getitem__(k[0])
+                except KeyError:
+                    d = nesteddict()
+                    self.__setitem__(k[0], d)
+                return d.__setitem__(k[1:], v)
+        else:
+            return super(nesteddict, self).__setitem__(k, v)
 
 
 if __name__ == '__main__':
